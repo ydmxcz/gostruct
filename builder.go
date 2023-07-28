@@ -4,20 +4,36 @@ import "reflect"
 
 type Builder struct {
 	field []reflect.StructField
+	tags  map[string]*reflect.StructField
 }
 
-func New() *Builder {
-	return &Builder{}
+func NewBuilder() *Builder {
+	return &Builder{
+		tags: map[string]*reflect.StructField{},
+	}
+}
+
+func (b *Builder) SetTagForField(fieldName, tagName string) *Builder {
+	if !b.containsField(fieldName) {
+		return b
+	}
+	b.tags[fieldName].Tag = reflect.StructTag(tagName)
+	return b
+}
+
+func (b *Builder) containsField(field string) bool {
+	_, ok := b.tags[field]
+	return ok
 }
 
 func (b *Builder) AddField(name string, ftype reflect.Type) *Builder {
-	b.field = append(
-		b.field,
-		reflect.StructField{
+	if !b.containsField(name) {
+		b.field = append(b.field, reflect.StructField{
 			Name: name,
 			Type: ftype,
 		})
-
+		b.tags[name] = &b.field[len(b.field)-1]
+	}
 	return b
 }
 
@@ -30,22 +46,27 @@ func (b *Builder) AddBool(name string) *Builder {
 }
 
 func (b *Builder) AddInt64(name string) *Builder {
+
 	return b.AddField(name, reflect.TypeOf(int64(0)))
+}
+
+func (b *Builder) AddInt32(name string) *Builder {
+	return b.AddField(name, reflect.TypeOf(int32(0)))
 }
 
 func (b *Builder) AddFloat64(name string) *Builder {
 	return b.AddField(name, reflect.TypeOf(float64(1.2)))
 }
 
-func (b *Builder) Build() Struct {
+func (b *Builder) Build() *Struct {
 	strct := reflect.StructOf(b.field)
-
 	index := make(map[string]int)
 	for i := 0; i < strct.NumField(); i++ {
-		index[strct.Field(i).Name] = i
+		f := strct.Field(i)
+		index[f.Name] = i
 	}
 
-	return Struct{strct, index}
+	return &Struct{strct, index}
 }
 
 type Struct struct {
@@ -55,6 +76,7 @@ type Struct struct {
 
 func (s *Struct) New() *Instance {
 	instance := reflect.New(s.strct).Elem()
+
 	return &Instance{instance, s.index}
 }
 
@@ -79,14 +101,18 @@ func (i *Instance) SetInt64(name string, value int64) {
 	i.Field(name).SetInt(value)
 }
 
+func (i *Instance) SetInt32(name string, value int32) {
+	i.Field(name).SetInt(int64(value))
+}
+
 func (i *Instance) SetFloat64(name string, value float64) {
 	i.Field(name).SetFloat(value)
 }
 
-func (i *Instance) Interface() interface{} {
+func (i *Instance) Interface() any {
 	return i.internal.Interface()
 }
 
-func (i *Instance) Addr() interface{} {
+func (i *Instance) Addr() any {
 	return i.internal.Addr().Interface()
 }

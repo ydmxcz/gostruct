@@ -3,11 +3,11 @@ package gostruct_test
 import (
 	"fmt"
 
-	"github.com/itsubaki/gostruct"
+	"github.com/ydmxcz/gostruct"
 )
 
 func Example() {
-	person := gostruct.New().
+	person := gostruct.NewBuilder().
 		AddString("Name").
 		AddInt64("Age").
 		Build()
